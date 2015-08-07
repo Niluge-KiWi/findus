@@ -7,12 +7,23 @@ class Payment:
     def __init__(self, info):
         self.comment = info['comment']
         self.creditor = info['creditor']
-        self.debtors = info['debtors']
+
+        self.debtors = []
+        for d in info['debtors']:
+            if d.__class__ == str:
+                debt = {'name': d, 'weight': 1}
+            else:
+                debt = {'name': d['name'], 'weight': d['weight'] or 1}
+            self.debtors.append(debt)
         if len(self.debtors) == 0:
             logger.error('Payment cannot be made to no one')
             raise ValueError
+
         self.amount = info['amount']
-        self.share = self.amount/len(self.debtors)
+        self.weight_sum = sum(map(lambda d: d['weight'], self.debtors))
+        for d in self.debtors:
+            d['amount'] = self.amount * d['weight'] / self.weight_sum
+
 
 class Debt:
 
@@ -62,9 +73,9 @@ class Ledger:
             else:
                 continue
             for d in payment.debtors:
-                debtor = self._get_insert_person(d)
+                debtor = self._get_insert_person(d['name'])
                 logger.debug('debtor: '+str(debtor.to_dict()))
-                debtor.balance -= payment.share
+                debtor.balance -= d['amount']
 
         self._transfers_done = False
         self._generate_transfers()
